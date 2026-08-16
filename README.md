@@ -1,6 +1,7 @@
 # SyntaxCircus.Storage
 
 [![Build](https://github.com/Syntax-Circus/SyntaxCircus.Storage/actions/workflows/build.yml/badge.svg)](https://github.com/Syntax-Circus/SyntaxCircus.Storage/actions/workflows/build.yml)
+[![NuGet](https://img.shields.io/nuget/v/SyntaxCircus.Storage.svg)](https://www.nuget.org/packages/SyntaxCircus.Storage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
 A stream-based file/blob storage abstraction, a local-disk implementation, and a config-driven provider switch. No ASP.NET Core dependency — usable from any .NET host.

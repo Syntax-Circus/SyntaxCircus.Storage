@@ -6,9 +6,9 @@
     <PackageId>SyntaxCircus.Storage</PackageId>
     <Title>SyntaxCircus Storage</Title>
     <Description>A stream-based file/blob storage abstraction, a local-disk implementation, and a config-driven provider switch. No framework dependency — usable from any .NET host.</Description>
-    <Authors>SyntaxCircus</Authors>
-    <Company>SyntaxCircus</Company>
-    <Copyright>Copyright © SyntaxCircus</Copyright>
+    <Authors>Syntax Circus LLC</Authors>
+    <Company>Syntax Circus LLC</Company>
+    <Copyright>Copyright © Syntax Circus LLC</Copyright>
     <PackageTags>storage;files;blob</PackageTags>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
