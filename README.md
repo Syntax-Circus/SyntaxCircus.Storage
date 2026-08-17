@@ -28,7 +28,7 @@ public sealed class WidgetService(IStorageProvider storage)
 
 `IStorageProvider` — `StoreAsync`/`ReadAsync`/`ExistsAsync`/`DeleteAsync`, all keyed by an opaque string path-like key. `ReadAsync` returns `StorageReadResult?` (`null` if the key doesn't exist), which is itself an `IAsyncDisposable` wrapping the content stream — dispose it (or `await using`) once you're done reading.
 
-Only `"Local"` is built in today (writes under a configured `RootPath`, with path-traversal keys rejected). Cloud-backed providers (S3, Azure Blob, etc.) aren't included yet — implement `IStorageProvider` yourself and register it directly instead of calling `AddStorageProvider`; the interface is designed so that isn't a breaking change to adopt later.
+Only `"Local"` is built in today (writes under a configured `RootPath`, with path-traversal and rooted/absolute keys rejected). Cloud-backed providers (S3, Azure Blob, etc.) aren't included yet — implement `IStorageProvider` yourself and register it directly instead of calling `AddStorageProvider`; the interface is designed so that isn't a breaking change to adopt later.
 
 ## Contributing
 

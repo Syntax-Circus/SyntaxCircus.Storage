@@ -113,6 +113,34 @@ public sealed class LocalFileStorageProviderTests : IDisposable
         File.Exists(Path.Combine(_rootPath, "file.txt")).ShouldBeTrue();
     }
 
+    [Theory]
+    [InlineData("C:/Windows/evil.txt")]
+    [InlineData(@"C:\Windows\evil.txt")]
+    [InlineData("C:evil.txt")]
+    [InlineData("D:/other-drive/evil.txt")]
+    public async Task StoreAsync_DriveRootedKey_ThrowsArgumentException(string key)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        using var content = ContentStream("x");
+
+        await Should.ThrowAsync<ArgumentException>(
+            () => _provider.StoreAsync(new StoreObjectRequest(key, content), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task StoreAsync_UncKey_TreatedAsRelativeUnderRoot()
+    {
+        using var content = ContentStream("x");
+
+        await _provider.StoreAsync(new StoreObjectRequest(@"\\server\share\file.txt", content), TestContext.Current.CancellationToken);
+
+        File.Exists(Path.Combine(_rootPath, "server", "share", "file.txt")).ShouldBeTrue();
+    }
+
     [Fact]
     public async Task ReadAsync_ExistingFile_ReturnsContentAndSize()
     {
