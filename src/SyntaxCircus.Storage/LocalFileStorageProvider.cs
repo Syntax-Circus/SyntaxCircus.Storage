@@ -46,13 +46,25 @@ public sealed class LocalFileStorageProvider(IOptions<LocalStorageOptions> optio
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
-        // Reject path traversal / absolute paths — a key is always relative to RootPath.
+        var root = Path.GetFullPath(options.Value.RootPath);
+
+        // Reject path traversal segments — a key is always relative to RootPath.
         var normalizedKey = key.Replace('\\', '/').TrimStart('/');
         if (normalizedKey.Split('/').Any(segment => segment is ".." or "."))
         {
             throw new ArgumentException("Storage key must not contain path traversal segments.", nameof(key));
         }
 
-        return Path.GetFullPath(Path.Combine(options.Value.RootPath, normalizedKey));
+        // Re-validate containment after full resolution: a rooted key (e.g. a Windows drive-absolute
+        // or drive-relative path) survives the checks above untouched and would otherwise cause
+        // Path.Combine to discard `root` entirely, escaping RootPath.
+        var resolved = Path.GetFullPath(Path.Combine(root, normalizedKey));
+        if (!resolved.StartsWith(root, StringComparison.OrdinalIgnoreCase) ||
+            (resolved.Length > root.Length && resolved[root.Length] != Path.DirectorySeparatorChar))
+        {
+            throw new ArgumentException("Storage key resolves outside the configured storage root.", nameof(key));
+        }
+
+        return resolved;
     }
 }
