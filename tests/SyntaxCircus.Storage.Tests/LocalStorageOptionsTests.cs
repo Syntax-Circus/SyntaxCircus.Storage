@@ -23,4 +23,20 @@ public class LocalStorageOptionsTests
 
         options.RootPath.ShouldBe("/data");
     }
+
+    [Fact]
+    public void PublicBaseUrl_DefaultsToNull()
+    {
+        var options = new LocalStorageOptions();
+
+        options.PublicBaseUrl.ShouldBeNull();
+    }
+
+    [Fact]
+    public void PublicBaseUrl_IsSettable()
+    {
+        var options = new LocalStorageOptions { PublicBaseUrl = "https://cdn.example.com/files" };
+
+        options.PublicBaseUrl.ShouldBe("https://cdn.example.com/files");
+    }
 }

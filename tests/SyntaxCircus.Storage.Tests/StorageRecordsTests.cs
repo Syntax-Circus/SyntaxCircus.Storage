@@ -62,3 +62,31 @@ public class StorageReadResultTests
         Should.Throw<ObjectDisposedException>(() => content.ReadByte());
     }
 }
+
+public class IStorageProviderDefaultsTests
+{
+    /// <summary>A minimal implementation that doesn't override <c>GetAccessUrlAsync</c>, to prove the interface's default member behaves correctly.</summary>
+    private sealed class NoOpStorageProvider : IStorageProvider
+    {
+        public Task<StoredObject> StoreAsync(StoreObjectRequest request, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<StorageReadResult?> ReadAsync(string key, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task DeleteAsync(string key, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+    }
+
+    [Fact]
+    public async Task GetAccessUrlAsync_NotOverridden_ThrowsNotSupportedException()
+    {
+        IStorageProvider provider = new NoOpStorageProvider();
+
+        await Should.ThrowAsync<NotSupportedException>(
+            () => provider.GetAccessUrlAsync("key.txt", cancellationToken: TestContext.Current.CancellationToken));
+    }
+}

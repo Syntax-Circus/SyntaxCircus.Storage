@@ -42,6 +42,24 @@ public sealed class LocalFileStorageProvider(IOptions<LocalStorageOptions> optio
         return Task.CompletedTask;
     }
 
+    public Task<string> GetAccessUrlAsync(string key, TimeSpan? expiry = null, CancellationToken cancellationToken = default)
+    {
+        // Validates the key with the same traversal/rooted-path guard StoreAsync/ReadAsync use,
+        // even though nothing is read from disk here.
+        ResolvePath(key);
+
+        var baseUrl = options.Value.PublicBaseUrl;
+        if (string.IsNullOrWhiteSpace(baseUrl))
+        {
+            throw new InvalidOperationException(
+                $"{nameof(LocalStorageOptions)}.{nameof(LocalStorageOptions.PublicBaseUrl)} must be configured to build access URLs.");
+        }
+
+        // expiry is intentionally ignored — local-disk URLs aren't signed/time-limited.
+        var normalizedKey = key.Replace('\\', '/').TrimStart('/');
+        return Task.FromResult($"{baseUrl.TrimEnd('/')}/{normalizedKey}");
+    }
+
     private string ResolvePath(string key)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
