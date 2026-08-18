@@ -30,6 +30,18 @@ public sealed class WidgetService(IStorageProvider storage)
 
 Only `"Local"` is built in today (writes under a configured `RootPath`, with path-traversal and rooted/absolute keys rejected). Cloud-backed providers (S3, Azure Blob, etc.) aren't included yet — implement `IStorageProvider` yourself and register it directly instead of calling `AddStorageProvider`; the interface is designed so that isn't a breaking change to adopt later.
 
+## Building access URLs
+
+```json
+{ "Storage": { "Provider": "Local" }, "Storage:Local": { "RootPath": "/var/data/my-app", "PublicBaseUrl": "https://cdn.example.com/files" } }
+```
+
+```csharp
+var url = await storage.GetAccessUrlAsync("widgets/abc.bin", ct); // https://cdn.example.com/files/widgets/abc.bin
+```
+
+`GetAccessUrlAsync` is a default interface method, so it's additive — any existing `IStorageProvider` implementation keeps compiling unchanged and simply doesn't support it (throws `NotSupportedException`) until it opts in. `LocalFileStorageProvider` builds a stable `{PublicBaseUrl}/{key}` URL and requires `PublicBaseUrl` to be configured; the `expiry` parameter exists for providers that support signed/time-limited URLs and is ignored on local disk.
+
 ## Contributing
 
 Issues and pull requests are welcome:

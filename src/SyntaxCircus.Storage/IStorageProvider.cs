@@ -9,6 +9,20 @@ public interface IStorageProvider
     Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(string key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Builds a URL a client can use to access <paramref name="key"/> directly, bypassing your app.
+    /// <paramref name="expiry"/> is a hint for providers that support time-limited/signed URLs (e.g.
+    /// cloud object storage) — implementations that can't honor it (like <see cref="LocalFileStorageProvider"/>)
+    /// ignore it and return a stable URL instead.
+    /// </summary>
+    /// <remarks>
+    /// Added after the interface's initial release as a default interface method so existing
+    /// implementations keep compiling unchanged. The default throws <see cref="NotSupportedException"/>;
+    /// override it in your own <see cref="IStorageProvider"/> if it can build access URLs.
+    /// </remarks>
+    Task<string> GetAccessUrlAsync(string key, TimeSpan? expiry = null, CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException($"{GetType().Name} does not support {nameof(GetAccessUrlAsync)}.");
 }
 
 public sealed record StoreObjectRequest(string Key, Stream Content, string? ContentType = null);

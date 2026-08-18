@@ -198,4 +198,38 @@ public sealed class LocalFileStorageProviderTests : IDisposable
     {
         await Should.NotThrowAsync(() => _provider.DeleteAsync("missing.txt", TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public async Task GetAccessUrlAsync_PublicBaseUrlConfigured_ReturnsExpectedUrl()
+    {
+        var provider = new LocalFileStorageProvider(Options.Create(new LocalStorageOptions
+        {
+            RootPath = _rootPath,
+            PublicBaseUrl = "https://cdn.example.com/files/",
+        }));
+
+        var url = await provider.GetAccessUrlAsync("a/b/file.txt", cancellationToken: TestContext.Current.CancellationToken);
+
+        url.ShouldBe("https://cdn.example.com/files/a/b/file.txt");
+    }
+
+    [Fact]
+    public async Task GetAccessUrlAsync_PublicBaseUrlNotConfigured_ThrowsInvalidOperationException()
+    {
+        await Should.ThrowAsync<InvalidOperationException>(
+            () => _provider.GetAccessUrlAsync("file.txt", cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetAccessUrlAsync_PathTraversalSegment_ThrowsArgumentException()
+    {
+        var provider = new LocalFileStorageProvider(Options.Create(new LocalStorageOptions
+        {
+            RootPath = _rootPath,
+            PublicBaseUrl = "https://cdn.example.com/files",
+        }));
+
+        await Should.ThrowAsync<ArgumentException>(
+            () => provider.GetAccessUrlAsync("../escape.txt", cancellationToken: TestContext.Current.CancellationToken));
+    }
 }
