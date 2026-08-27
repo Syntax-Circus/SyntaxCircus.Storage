@@ -47,7 +47,6 @@ public sealed record ListStorageObjectsRequest
 {
     public ListStorageObjectsRequest(string Prefix, string? AfterKey = null, int PageSize = 100)
     {
-        ArgumentNullException.ThrowIfNull(Prefix);
         ArgumentOutOfRangeException.ThrowIfLessThan(PageSize, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(PageSize, 1_000);
 

@@ -137,7 +137,7 @@ public class StorageReadResultTests
 
 public class IStorageProviderDefaultsTests
 {
-    /// <summary>A minimal implementation that doesn't override <c>GetAccessUrlAsync</c>, to prove the interface's default member behaves correctly.</summary>
+    /// <summary>A minimal implementation that proves optional interface members preserve existing providers.</summary>
     private sealed class NoOpStorageProvider : IStorageProvider
     {
         public Task<StoredObject> StoreAsync(StoreObjectRequest request, CancellationToken cancellationToken = default)

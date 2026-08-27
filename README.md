@@ -28,6 +28,8 @@ public sealed class WidgetService(IStorageProvider storage)
 
 `IStorageProvider` — `StoreAsync`/`ReadAsync`/`ExistsAsync`/`DeleteAsync`, all keyed by an opaque string path-like key. `ReadAsync` returns `StorageReadResult?` (`null` if the key doesn't exist), which is itself an `IAsyncDisposable` wrapping the content stream — dispose it (or `await using`) once you're done reading.
 
+Providers can also implement `GetMetadataAsync` and `ListAsync`. Metadata reads return size, content type when the provider preserves it, and the UTC last-modified instant. Listing is prefix-scoped, ordinally ordered, and bounded to 1–1,000 objects per page; pass the prior page's `NextAfterKey` back as `AfterKey` to continue. These are default interface methods so existing third-party providers keep compiling and receive `NotSupportedException` until they opt in.
+
 Only `"Local"` is built in today (writes under a configured `RootPath`, with path-traversal and rooted/absolute keys rejected). Cloud-backed providers (S3, Azure Blob, etc.) aren't included yet — implement `IStorageProvider` yourself and register it directly instead of calling `AddStorageProvider`; the interface is designed so that isn't a breaking change to adopt later.
 
 ## Building access URLs
