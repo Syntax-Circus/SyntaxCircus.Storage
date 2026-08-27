@@ -53,13 +53,32 @@ public class StorageServiceCollectionExtensionsTests
         serviceProvider.GetRequiredService<IStorageProvider>().ShouldBeOfType<LocalFileStorageProvider>();
     }
 
+    [Theory]
+    [InlineData("S3")]
+    [InlineData("s3")]
+    public void AddStorageProvider_S3ProviderCaseInsensitive_RegistersS3StorageProvider(string provider)
+    {
+        var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            ["Storage:Provider"] = provider,
+            ["Storage:S3:BucketName"] = "media",
+            ["Storage:S3:Region"] = "us-east-1"
+        }).Build();
+        var services = new ServiceCollection();
+        services.AddStorageProvider(configuration);
+
+        using var serviceProvider = services.BuildServiceProvider();
+
+        serviceProvider.GetRequiredService<IStorageProvider>().ShouldBeOfType<S3StorageProvider>();
+    }
+
     [Fact]
     public void AddStorageProvider_UnknownProvider_ThrowsInvalidOperationException()
     {
         var services = new ServiceCollection();
 
-        var ex = Should.Throw<InvalidOperationException>(() => services.AddStorageProvider(BuildConfiguration("S3")));
-        ex.Message.ShouldContain("S3");
+        var ex = Should.Throw<InvalidOperationException>(() => services.AddStorageProvider(BuildConfiguration("Azure")));
+        ex.Message.ShouldContain("Azure");
     }
 
     [Fact]
@@ -74,5 +93,32 @@ public class StorageServiceCollectionExtensionsTests
         using var serviceProvider = services.BuildServiceProvider();
 
         serviceProvider.GetRequiredService<IOptions<LocalStorageOptions>>().Value.RootPath.ShouldBe("/data/blobs");
+    }
+
+    [Fact]
+    public void AddStorageProvider_BindsS3StorageOptions()
+    {
+        var dict = new Dictionary<string, string?>
+        {
+            ["Storage:Provider"] = "S3",
+            ["Storage:S3:BucketName"] = "media",
+            ["Storage:S3:Region"] = "us-west-2",
+            ["Storage:S3:ServiceUrl"] = "http://localhost:9000",
+            ["Storage:S3:AccessKey"] = "access",
+            ["Storage:S3:SecretKey"] = "secret",
+            ["Storage:S3:ForcePathStyle"] = "true"
+        };
+        var services = new ServiceCollection();
+        services.AddStorageProvider(new ConfigurationBuilder().AddInMemoryCollection(dict).Build());
+
+        using var serviceProvider = services.BuildServiceProvider();
+        var options = serviceProvider.GetRequiredService<IOptions<S3StorageOptions>>().Value;
+
+        options.BucketName.ShouldBe("media");
+        options.Region.ShouldBe("us-west-2");
+        options.ServiceUrl.ShouldBe("http://localhost:9000");
+        options.AccessKey.ShouldBe("access");
+        options.SecretKey.ShouldBe("secret");
+        options.ForcePathStyle.ShouldBeTrue();
     }
 }

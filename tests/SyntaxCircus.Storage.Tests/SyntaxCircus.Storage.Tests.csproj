@@ -11,6 +11,7 @@
     <PackageReference Include="Shouldly" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="Testcontainers.Minio" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\SyntaxCircus.Storage\SyntaxCircus.Storage.csproj" />
