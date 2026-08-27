@@ -200,6 +200,113 @@ public sealed class LocalFileStorageProviderTests : IDisposable
     }
 
     [Fact]
+    public async Task GetMetadataAsync_ExistingFile_ReturnsNormalizedKeySizeAndUtcLastModified()
+    {
+        using var content = ContentStream("metadata");
+        var beforeWrite = DateTimeOffset.UtcNow.AddSeconds(-1);
+        await _provider.StoreAsync(new StoreObjectRequest(@"widgets\file.txt", content, "text/plain"), TestContext.Current.CancellationToken);
+
+        var metadata = await _provider.GetMetadataAsync("widgets/file.txt", TestContext.Current.CancellationToken);
+
+        metadata.ShouldNotBeNull();
+        metadata.Key.ShouldBe("widgets/file.txt");
+        metadata.SizeBytes.ShouldBe(8L);
+        metadata.ContentType.ShouldBeNull();
+        metadata.LastModified.Offset.ShouldBe(TimeSpan.Zero);
+        metadata.LastModified.ShouldBeGreaterThanOrEqualTo(beforeWrite);
+        metadata.LastModified.ShouldBeLessThanOrEqualTo(DateTimeOffset.UtcNow.AddSeconds(1));
+    }
+
+    [Fact]
+    public async Task GetMetadataAsync_MissingFile_ReturnsNull()
+    {
+        var metadata = await _provider.GetMetadataAsync("missing.txt", TestContext.Current.CancellationToken);
+
+        metadata.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ListAsync_ReturnsOrdinalPrefixPagesWithStableAfterKey()
+    {
+        foreach (var key in new[] { "widgets/c.txt", "other.txt", "widgets/a.txt", "widgets/b.txt" })
+        {
+            using var content = ContentStream(key);
+            await _provider.StoreAsync(new StoreObjectRequest(key, content), TestContext.Current.CancellationToken);
+        }
+
+        var first = await _provider.ListAsync(new ListStorageObjectsRequest("widgets/", PageSize: 2), TestContext.Current.CancellationToken);
+        var second = await _provider.ListAsync(new ListStorageObjectsRequest("widgets/", first.NextAfterKey, 2), TestContext.Current.CancellationToken);
+
+        first.Items.Select(item => item.Key).ShouldBe(["widgets/a.txt", "widgets/b.txt"]);
+        first.NextAfterKey.ShouldBe("widgets/b.txt");
+        second.Items.Select(item => item.Key).ShouldBe(["widgets/c.txt"]);
+        second.NextAfterKey.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task ListAsync_EmptyAndBackslashPrefixesBehaveAsNormalizedPrefixes()
+    {
+        foreach (var key in new[] { "widgets/a.txt", "other.txt" })
+        {
+            using var content = ContentStream(key);
+            await _provider.StoreAsync(new StoreObjectRequest(key, content), TestContext.Current.CancellationToken);
+        }
+
+        var all = await _provider.ListAsync(new ListStorageObjectsRequest(""), TestContext.Current.CancellationToken);
+        var widgets = await _provider.ListAsync(new ListStorageObjectsRequest(@"widgets\"), TestContext.Current.CancellationToken);
+        var missing = await _provider.ListAsync(new ListStorageObjectsRequest("missing/"), TestContext.Current.CancellationToken);
+
+        all.Items.Select(item => item.Key).ShouldBe(["other.txt", "widgets/a.txt"]);
+        widgets.Items.Select(item => item.Key).ShouldBe(["widgets/a.txt"]);
+        missing.Items.ShouldBeEmpty();
+        missing.NextAfterKey.ShouldBeNull();
+    }
+
+    [Theory]
+    [InlineData("../")]
+    [InlineData("a/../../")]
+    [InlineData("./")]
+    [InlineData("a/./")]
+    public async Task ListAsync_TraversalPrefix_ThrowsArgumentException(string prefix)
+    {
+        await Should.ThrowAsync<ArgumentException>(
+            () => _provider.ListAsync(new ListStorageObjectsRequest(prefix), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ListAsync_DriveRootedPrefix_ThrowsArgumentExceptionOnWindows()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        await Should.ThrowAsync<ArgumentException>(
+            () => _provider.ListAsync(new ListStorageObjectsRequest("C:/Windows/"), TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/etc/")]
+    [InlineData(@"\Windows\")]
+    [InlineData(@"\\server\share\")]
+    public async Task ListAsync_RootedPrefix_ThrowsArgumentException(string prefix)
+    {
+        await Should.ThrowAsync<ArgumentException>(
+            () => _provider.ListAsync(new ListStorageObjectsRequest(prefix), TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task NewMetadataOperations_PreCanceledToken_ThrowOperationCanceledException()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => _provider.GetMetadataAsync("file.txt", cancellation.Token));
+        await Should.ThrowAsync<OperationCanceledException>(() => _provider.ListAsync(new ListStorageObjectsRequest(""), cancellation.Token));
+    }
+
+    [Fact]
     public async Task GetAccessUrlAsync_PublicBaseUrlConfigured_ReturnsExpectedUrl()
     {
         var provider = new LocalFileStorageProvider(Options.Create(new LocalStorageOptions

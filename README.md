@@ -4,18 +4,23 @@
 [![NuGet](https://img.shields.io/nuget/v/SyntaxCircus.Storage.svg)](https://www.nuget.org/packages/SyntaxCircus.Storage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.txt)
 
-A stream-based file/blob storage abstraction, a local-disk implementation, and a config-driven provider switch. No ASP.NET Core dependency — usable from any .NET host.
+A stream-based file/blob storage abstraction with local-disk and S3-compatible implementations and a config-driven provider switch. No ASP.NET Core dependency — usable from any .NET host.
 
 > **No support guaranteed.** Published as-is and maintained on a best-effort basis. Issues and PRs are welcome, but there's no SLA — fork it or vendor what you need if that's not enough.
 
 ## Usage
 
 ```csharp
-builder.Services.AddStorageProvider(builder.Configuration); // binds "Storage" and "Storage:Local"
+builder.Services.AddStorageProvider(builder.Configuration);
 ```
 
 ```json
-{ "Storage": { "Provider": "Local" }, "Storage:Local": { "RootPath": "/var/data/my-app" } }
+{
+  "Storage": {
+    "Provider": "Local",
+    "Local": { "RootPath": "/var/data/my-app" }
+  }
+}
 ```
 
 ```csharp
@@ -28,12 +33,60 @@ public sealed class WidgetService(IStorageProvider storage)
 
 `IStorageProvider` — `StoreAsync`/`ReadAsync`/`ExistsAsync`/`DeleteAsync`, all keyed by an opaque string path-like key. `ReadAsync` returns `StorageReadResult?` (`null` if the key doesn't exist), which is itself an `IAsyncDisposable` wrapping the content stream — dispose it (or `await using`) once you're done reading.
 
-Only `"Local"` is built in today (writes under a configured `RootPath`, with path-traversal and rooted/absolute keys rejected). Cloud-backed providers (S3, Azure Blob, etc.) aren't included yet — implement `IStorageProvider` yourself and register it directly instead of calling `AddStorageProvider`; the interface is designed so that isn't a breaking change to adopt later.
+Providers can also implement `GetMetadataAsync` and `ListAsync`. Metadata reads return size, content type when the provider preserves it, and the UTC last-modified instant. Listing is prefix-scoped, ordinally ordered, and bounded to 1–1,000 objects per page; pass the prior page's `NextAfterKey` back as `AfterKey` to continue. These are default interface methods so existing third-party providers keep compiling and receive `NotSupportedException` until they opt in.
+
+`AddStorageProvider` recognizes `"Local"` (the default) and `"S3"` case-insensitively. Local storage writes under a configured `RootPath`, with path-traversal and rooted/absolute keys rejected.
+
+### S3-compatible storage
+
+For AWS S3, the bucket and region are required. When access and secret keys are omitted, the AWS SDK's normal credential chain is used.
+
+```json
+{
+  "Storage": {
+    "Provider": "S3",
+    "S3": {
+      "BucketName": "my-app-media",
+      "Region": "us-east-1"
+    }
+  }
+}
+```
+
+For MinIO or another S3-compatible endpoint, set `ServiceUrl`, provide both credentials, and normally enable path-style addressing:
+
+```json
+{
+  "Storage": {
+    "Provider": "S3",
+    "S3": {
+      "BucketName": "my-app-media",
+      "Region": "us-east-1",
+      "ServiceUrl": "http://minio:9000",
+      "AccessKey": "set-with-secret-configuration",
+      "SecretKey": "set-with-secret-configuration",
+      "ForcePathStyle": true
+    }
+  }
+}
+```
+
+Do not commit production credentials to configuration files. `BucketName` and `Region` must be non-empty, and `AccessKey` and `SecretKey` must be configured together. `S3StorageProvider(IOptions<S3StorageOptions>)` creates and owns its AWS client; the overload accepting `IAmazonS3` leaves the injected client owned by the caller.
+
+S3 listings preserve the shared ordinal, prefix/`AfterKey`, bounded-page contract. List responses do not include object content type, so listed metadata reports a null content type; call `GetMetadataAsync` when content type is required. An S3 `StorageReadResult` owns the underlying AWS response and must be disposed.
 
 ## Building access URLs
 
 ```json
-{ "Storage": { "Provider": "Local" }, "Storage:Local": { "RootPath": "/var/data/my-app", "PublicBaseUrl": "https://cdn.example.com/files" } }
+{
+  "Storage": {
+    "Provider": "Local",
+    "Local": {
+      "RootPath": "/var/data/my-app",
+      "PublicBaseUrl": "https://cdn.example.com/files"
+    }
+  }
+}
 ```
 
 ```csharp
