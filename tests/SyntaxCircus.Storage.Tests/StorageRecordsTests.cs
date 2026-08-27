@@ -37,6 +37,78 @@ public class StoredObjectTests
     }
 }
 
+public class StorageObjectMetadataTests
+{
+    [Fact]
+    public void Ctor_SetsAllProperties()
+    {
+        var lastModified = new DateTimeOffset(2026, 8, 26, 12, 30, 0, TimeSpan.Zero);
+
+        var metadata = new StorageObjectMetadata("widgets/one.bin", 42L, "application/octet-stream", lastModified);
+
+        metadata.Key.ShouldBe("widgets/one.bin");
+        metadata.SizeBytes.ShouldBe(42L);
+        metadata.ContentType.ShouldBe("application/octet-stream");
+        metadata.LastModified.ShouldBe(lastModified);
+    }
+}
+
+public class ListStorageObjectsRequestTests
+{
+    [Fact]
+    public void Ctor_DefaultsContinuationAndPageSize()
+    {
+        var request = new ListStorageObjectsRequest("widgets/");
+
+        request.Prefix.ShouldBe("widgets/");
+        request.AfterKey.ShouldBeNull();
+        request.PageSize.ShouldBe(100);
+    }
+
+    [Fact]
+    public void Ctor_SetsAllProperties()
+    {
+        var request = new ListStorageObjectsRequest("widgets/", "widgets/one.bin", 25);
+
+        request.Prefix.ShouldBe("widgets/");
+        request.AfterKey.ShouldBe("widgets/one.bin");
+        request.PageSize.ShouldBe(25);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(1000)]
+    public void Ctor_AcceptsPageSizeBounds(int pageSize)
+    {
+        var request = new ListStorageObjectsRequest("widgets/", PageSize: pageSize);
+
+        request.PageSize.ShouldBe(pageSize);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1001)]
+    public void Ctor_RejectsPageSizeOutsideBounds(int pageSize)
+    {
+        Should.Throw<ArgumentOutOfRangeException>(() => new ListStorageObjectsRequest("widgets/", PageSize: pageSize));
+    }
+}
+
+public class StorageObjectPageTests
+{
+    [Fact]
+    public void Ctor_SetsItemsAndContinuation()
+    {
+        var item = new StorageObjectMetadata("widgets/one.bin", 42L, null, DateTimeOffset.UnixEpoch);
+        IReadOnlyList<StorageObjectMetadata> items = [item];
+
+        var page = new StorageObjectPage(items, "widgets/one.bin");
+
+        page.Items.ShouldBeSameAs(items);
+        page.NextAfterKey.ShouldBe("widgets/one.bin");
+    }
+}
+
 public class StorageReadResultTests
 {
     [Fact]
@@ -88,5 +160,23 @@ public class IStorageProviderDefaultsTests
 
         await Should.ThrowAsync<NotSupportedException>(
             () => provider.GetAccessUrlAsync("key.txt", cancellationToken: TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetMetadataAsync_NotOverridden_ThrowsNotSupportedException()
+    {
+        IStorageProvider provider = new NoOpStorageProvider();
+
+        await Should.ThrowAsync<NotSupportedException>(
+            () => provider.GetMetadataAsync("key.txt", TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task ListAsync_NotOverridden_ThrowsNotSupportedException()
+    {
+        IStorageProvider provider = new NoOpStorageProvider();
+
+        await Should.ThrowAsync<NotSupportedException>(
+            () => provider.ListAsync(new ListStorageObjectsRequest(""), TestContext.Current.CancellationToken));
     }
 }
