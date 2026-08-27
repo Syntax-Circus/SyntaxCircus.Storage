@@ -285,6 +285,17 @@ public sealed class LocalFileStorageProviderTests : IDisposable
             () => _provider.ListAsync(new ListStorageObjectsRequest("C:/Windows/"), TestContext.Current.CancellationToken));
     }
 
+    [Theory]
+    [InlineData("/")]
+    [InlineData("/etc/")]
+    [InlineData(@"\Windows\")]
+    [InlineData(@"\\server\share\")]
+    public async Task ListAsync_RootedPrefix_ThrowsArgumentException(string prefix)
+    {
+        await Should.ThrowAsync<ArgumentException>(
+            () => _provider.ListAsync(new ListStorageObjectsRequest(prefix), TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task NewMetadataOperations_PreCanceledToken_ThrowOperationCanceledException()
     {

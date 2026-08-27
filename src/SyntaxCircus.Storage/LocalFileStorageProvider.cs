@@ -138,6 +138,11 @@ public sealed class LocalFileStorageProvider(IOptions<LocalStorageOptions> optio
 
     private string NormalizePrefix(string prefix)
     {
+        if (prefix.Length > 0 && (prefix[0] is '/' or '\\' || Path.IsPathRooted(prefix)))
+        {
+            throw new ArgumentException("Storage prefix must be relative to the configured storage root.", nameof(prefix));
+        }
+
         var normalizedPrefix = prefix.Replace('\\', '/').TrimStart('/');
         if (normalizedPrefix.Split('/').Any(segment => segment is ".." or "."))
         {
