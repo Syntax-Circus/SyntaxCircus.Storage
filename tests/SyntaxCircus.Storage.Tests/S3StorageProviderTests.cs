@@ -142,6 +142,15 @@ public sealed class S3StorageProviderDisposalTests
     });
 
     [Fact]
+    public void S3StorageProvider_DoesNotImplementILocalPathAccessor()
+    {
+        var client = Substitute.For<IAmazonS3>();
+        using var provider = new S3StorageProvider(client, ValidOptions());
+
+        provider.ShouldNotBeAssignableTo<ILocalPathAccessor>();
+    }
+
+    [Fact]
     public void Dispose_InjectedClient_DoesNotDisposeClient()
     {
         var client = Substitute.For<IAmazonS3>();
