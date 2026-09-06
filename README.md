@@ -95,6 +95,27 @@ var url = await storage.GetAccessUrlAsync("widgets/abc.bin", ct); // https://cdn
 
 `GetAccessUrlAsync` is a default interface method, so it's additive — any existing `IStorageProvider` implementation keeps compiling unchanged and simply doesn't support it (throws `NotSupportedException`) until it opts in. `LocalFileStorageProvider` builds a stable `{PublicBaseUrl}/{key}` URL and requires `PublicBaseUrl` to be configured; the `expiry` parameter exists for providers that support signed/time-limited URLs and is ignored on local disk.
 
+## Getting a local filesystem path
+
+Some consumers (e.g. a PDF generator that hands a file path to a native library) need a real path on disk rather than a stream. That's only meaningful for a provider actually backed by local disk, so it isn't part of `IStorageProvider` — it's an optional capability interface, `ILocalPathAccessor`, that only `LocalFileStorageProvider` implements. `S3StorageProvider` (and any other cloud-backed provider) does not implement it, since there's no local path to give.
+
+```csharp
+public sealed class CertificateGenerator(IStorageProvider storage)
+{
+    public async Task<string?> TryGetLocalPathAsync(string key, CancellationToken ct)
+    {
+        if (storage is ILocalPathAccessor localPathAccessor)
+        {
+            return await localPathAccessor.GetLocalPathAsync(key, ct);
+        }
+
+        return null; // fall back to reading via IStorageProvider.ReadAsync instead
+    }
+}
+```
+
+`GetLocalPathAsync` returns the resolved path under the provider's configured `RootPath`, or `null` when the key doesn't exist — the same not-found convention as `ReadAsync` and `GetMetadataAsync`.
+
 ## Contributing
 
 Issues and pull requests are welcome:

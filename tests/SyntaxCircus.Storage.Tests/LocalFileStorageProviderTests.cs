@@ -339,4 +339,40 @@ public sealed class LocalFileStorageProviderTests : IDisposable
         await Should.ThrowAsync<ArgumentException>(
             () => provider.GetAccessUrlAsync("../escape.txt", cancellationToken: TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public void LocalFileStorageProvider_ImplementsILocalPathAccessor()
+    {
+        _provider.ShouldBeAssignableTo<ILocalPathAccessor>();
+    }
+
+    [Fact]
+    public async Task GetLocalPathAsync_ExistingFile_ReturnsRealFilesystemPath()
+    {
+        using var content = ContentStream("hello world");
+        await _provider.StoreAsync(new StoreObjectRequest("widgets/file.txt", content), TestContext.Current.CancellationToken);
+
+        var path = await ((ILocalPathAccessor)_provider).GetLocalPathAsync("widgets/file.txt", TestContext.Current.CancellationToken);
+
+        path.ShouldBe(Path.Combine(_rootPath, "widgets", "file.txt"));
+        File.Exists(path).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task GetLocalPathAsync_MissingFile_ReturnsNull()
+    {
+        var path = await ((ILocalPathAccessor)_provider).GetLocalPathAsync("missing.txt", TestContext.Current.CancellationToken);
+
+        path.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task GetLocalPathAsync_PreCanceledToken_ThrowsOperationCanceledException()
+    {
+        using var cancellation = new CancellationTokenSource();
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            () => ((ILocalPathAccessor)_provider).GetLocalPathAsync("file.txt", cancellation.Token));
+    }
 }

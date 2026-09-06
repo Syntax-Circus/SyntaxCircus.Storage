@@ -1,6 +1,6 @@
 namespace SyntaxCircus.Storage;
 
-public sealed class LocalFileStorageProvider(IOptions<LocalStorageOptions> options) : IStorageProvider
+public sealed class LocalFileStorageProvider(IOptions<LocalStorageOptions> options) : IStorageProvider, ILocalPathAccessor
 {
     public async Task<StoredObject> StoreAsync(StoreObjectRequest request, CancellationToken cancellationToken = default)
     {
@@ -98,6 +98,14 @@ public sealed class LocalFileStorageProvider(IOptions<LocalStorageOptions> optio
         }
 
         return Task.CompletedTask;
+    }
+
+    public Task<string?> GetLocalPathAsync(string key, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var normalizedKey = NormalizeKey(key);
+        var path = ResolvePath(normalizedKey);
+        return Task.FromResult<string?>(File.Exists(path) ? path : null);
     }
 
     public Task<string> GetAccessUrlAsync(string key, TimeSpan? expiry = null, CancellationToken cancellationToken = default)
